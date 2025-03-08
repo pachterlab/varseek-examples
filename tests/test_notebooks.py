@@ -3,7 +3,7 @@ import tempfile
 import shutil
 import os
 
-file_list_lax = ["vk_ref.ipynb", "vk_count.ipynb"]  #* modify this list
+file_list_lax = ["vk_ref.ipynb", "vk_count.ipynb", "vk_sim.ipynb"]  #* modify this list
 file_list_strict = []  #* modify this list
 # make sure to reload and execute notebook after making changes for them to take effect in pytest
 # add '# NBVAL_IGNORE_OUTPUT' (without quotes) at the tops of cells I don't expect to be the same when runing --nbval (strict)
