@@ -56,7 +56,7 @@ def test_run_identical_strict(tmp_path, file_name):
 
     temp_notebook_path = os.path.join(tmp_path, file_name)
     shutil.copy(notebook_path, temp_notebook_path)
-    clear_notebook_output(temp_notebook_path)  # avoid Unrun reference cell has outputs
+    # clear_notebook_output(temp_notebook_path)  # avoid Unrun reference cell has outputs
 
     print(f"Testing notebook {temp_notebook_path}")
     result = pytest.main(["--nbval", "--tb=short", "-vv", temp_notebook_path], plugins=[])
