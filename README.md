@@ -4,4 +4,5 @@ This repository contains immediatly executable Google Colab tutorials for [`vars
 
 ## Available tutorials:
 ### [🔗 Tutorial 1](https://colab.research.google.com/github/pachterlab/varseek-examples/blob/main/vk_ref.ipynb)  
-### [🔗 Tutorial 2](https://colab.research.google.com/github/pachterlab/varseek-examples/blob/main/vk_count.ipynb)  
+### [🔗 Tutorial 2](https://colab.research.google.com/github/pachterlab/varseek-examples/blob/main/vk_count.ipynb)
+### [🔗 Tutorial 3](https://colab.research.google.com/github/pachterlab/varseek-examples/blob/main/vk_sim.ipynb)  
