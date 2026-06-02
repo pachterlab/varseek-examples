@@ -150,7 +150,7 @@ logs/
 **/logs/
 
 # Scratch directories
-trash/
+trash/**
 **/pytest_ground_truth/
 data
 data/
