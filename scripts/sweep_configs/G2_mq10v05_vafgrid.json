@@ -1,0 +1,65 @@
+{
+  "name": "G2_mq10v05_vafgrid",
+  "seed_tag": "mq10_bq15_c2_v05",
+  "k": 41,
+  "w": 40,
+  "pseudobam_validation": true,
+  "check_alignment_position": true,
+  "alignment_position_tolerance": 200,
+  "eval_grid": [
+    {
+      "min_supporting_reads": 4,
+      "min_snp_vaf": 0.2,
+      "min_indel_vaf": 0.2,
+      "counts": "pseudobam"
+    },
+    {
+      "min_supporting_reads": 4,
+      "min_snp_vaf": 0.25,
+      "min_indel_vaf": 0.2,
+      "counts": "pseudobam"
+    },
+    {
+      "min_supporting_reads": 4,
+      "min_snp_vaf": 0.25,
+      "min_indel_vaf": 0.25,
+      "counts": "pseudobam"
+    },
+    {
+      "min_supporting_reads": 4,
+      "min_snp_vaf": 0.3,
+      "min_indel_vaf": 0.25,
+      "counts": "pseudobam"
+    },
+    {
+      "min_supporting_reads": 5,
+      "min_snp_vaf": 0.25,
+      "min_indel_vaf": 0.2,
+      "counts": "pseudobam"
+    },
+    {
+      "min_supporting_reads": 5,
+      "min_snp_vaf": 0.3,
+      "min_indel_vaf": 0.25,
+      "counts": "pseudobam"
+    },
+    {
+      "min_supporting_reads": 4,
+      "min_snp_vaf": 0.35,
+      "min_indel_vaf": 0.3,
+      "counts": "pseudobam"
+    },
+    {
+      "min_supporting_reads": 3,
+      "min_snp_vaf": 0.25,
+      "min_indel_vaf": 0.2,
+      "counts": "pseudobam"
+    }
+  ],
+  "denovo_min_counts": 2,
+  "denovo_min_mapq": 10,
+  "denovo_min_baseq": 15,
+  "denovo_min_vaf": 0.05,
+  "min_unique_triplets": null,
+  "shorten_repetitive_regions": false
+}

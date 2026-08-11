@@ -1,0 +1,67 @@
+{
+  "pseudobam_validation": true,
+  "check_alignment_position": true,
+  "alignment_position_tolerance": 200,
+  "eval_grid": [
+    {
+      "min_supporting_reads": 4,
+      "min_snp_vaf": 0.25,
+      "min_indel_vaf": 0.2,
+      "counts": "pseudobam"
+    },
+    {
+      "min_supporting_reads": 3,
+      "min_snp_vaf": 0.25,
+      "min_indel_vaf": 0.15,
+      "counts": "pseudobam"
+    },
+    {
+      "min_supporting_reads": 3,
+      "min_snp_vaf": 0.25,
+      "min_indel_vaf": 0.2,
+      "counts": "pseudobam"
+    },
+    {
+      "min_supporting_reads": 3,
+      "min_snp_vaf": 0.2,
+      "min_indel_vaf": 0.2,
+      "counts": "pseudobam"
+    },
+    {
+      "min_supporting_reads": 4,
+      "min_snp_vaf": 0.2,
+      "min_indel_vaf": 0.15,
+      "counts": "pseudobam"
+    },
+    {
+      "min_supporting_reads": 2,
+      "min_snp_vaf": 0.25,
+      "min_indel_vaf": 0.2,
+      "counts": "pseudobam"
+    },
+    {
+      "min_supporting_reads": 5,
+      "min_snp_vaf": 0.25,
+      "min_indel_vaf": 0.2,
+      "counts": "pseudobam"
+    },
+    {
+      "min_supporting_reads": 3,
+      "min_snp_vaf": null,
+      "min_indel_vaf": null,
+      "counts": "pseudobam"
+    }
+  ],
+  "denovo_min_counts": 2,
+  "denovo_min_mapq": 10,
+  "denovo_min_baseq": 15,
+  "denovo_min_vaf": 0.05,
+  "max_homopolymer_length": null,
+  "min_unique_triplets": null,
+  "shorten_repetitive_regions": true,
+  "remove_alignment_to_reference": false,
+  "name": "K3_k51_mq10v05",
+  "seed_tag": "mq10_bq15_c2_v05",
+  "k": 51,
+  "w": 45
+}

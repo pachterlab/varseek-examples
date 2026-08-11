@@ -41,12 +41,14 @@ import glob
 import gzip
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import threading
 import time
 import traceback
+import types
 
 import psutil
 
@@ -299,6 +301,70 @@ def sample_reads(target_reads, source_reads, out_dir, seed, verify=False, force=
 # --------------------------------------------------------------------------------------
 # varseek stages
 # --------------------------------------------------------------------------------------
+BAM2VCF_TIME_RE = re.compile(rb"bam2vcf: \S+ reads, \d+ records, ([\d.]+)s")
+
+
+@contextlib.contextmanager
+def capture_bam2vcf_time():
+    """Yield an object whose `.seconds` becomes varseek's caller-only runtime.
+
+    `vk denovo` = bowtie2 alignment + variant calling, and alignment is ~98% of it. The
+    general-purpose callers in this benchmark are timed on a *pre-built* BAM, so charging
+    varseek for alignment is not a like-for-like comparison. varseek reports the calling
+    step as `bam2vcf: <n> reads, <m> records, <t>s`, and the VCF/TSV write that follows
+    lands within the same second, so that `t` is the whole post-alignment cost.
+
+    That line is written by the bam2vcf C++ extension with fprintf(stderr, ...), and
+    varseek's logging setup tears down root handlers mid-call, so a logging.Handler never
+    sees it. Hence capture at the file-descriptor level: fd 2 is redirected through a pipe
+    whose reader forwards every byte to the real stderr unchanged (console and any shell
+    redirection are unaffected) while scanning for the pattern.
+
+    Only `variant_caller="bam2vcf"` emits it; under "bcftools" `.seconds` stays None and
+    the alignment split is simply unavailable.
+    """
+    holder = types.SimpleNamespace(seconds=None)
+
+    sys.stderr.flush()
+    saved_fd = os.dup(2)
+    read_fd, write_fd = os.pipe()
+    os.dup2(write_fd, 2)
+    os.close(write_fd)
+
+    def pump():
+        buf = b""
+        while True:
+            try:
+                chunk = os.read(read_fd, 65536)
+            except OSError:
+                break
+            if not chunk:
+                break
+            os.write(saved_fd, chunk)  # forward verbatim; do not swallow varseek's output
+            buf += chunk
+            if b"\n" in buf:
+                *lines, buf = buf.split(b"\n")
+                for line in lines:
+                    match = BAM2VCF_TIME_RE.search(line)
+                    if match:
+                        holder.seconds = float(match.group(1))
+        if buf:
+            match = BAM2VCF_TIME_RE.search(buf)
+            if match:
+                holder.seconds = float(match.group(1))
+
+    thread = threading.Thread(target=pump, daemon=True)
+    thread.start()
+    try:
+        yield holder
+    finally:
+        sys.stderr.flush()
+        os.dup2(saved_fd, 2)  # closes the pipe's write end -> reader sees EOF
+        thread.join(timeout=10)
+        os.close(read_fd)
+        os.close(saved_fd)
+
+
 def run_denovo(fastq, point_dir, threads):
     out_dir = os.path.join(point_dir, "denovo")
     os.makedirs(out_dir, exist_ok=True)
@@ -306,7 +372,7 @@ def run_denovo(fastq, point_dir, threads):
     variants_tsv = os.path.join(out_dir, "variants.tsv")
     bam_dir = os.path.join(out_dir, "bams")
 
-    with timed("vk denovo") as rec:
+    with timed("vk denovo") as rec, capture_bam2vcf_time() as caller_timer:
         vk.denovo(
             inputs=[fastq],
             sequences=SEQUENCES,
@@ -334,8 +400,16 @@ def run_denovo(fastq, point_dir, threads):
             n_variants = max(sum(1 for _ in fh) - 1, 0)  # minus header
     rec.update(n_candidate_variants=n_variants,
                bam_bytes=du(bam_dir),
-               out_bytes=du(out_dir))
-    print(f"[{ts()}] vk denovo candidates: {n_variants:,}" if n_variants is not None else "", flush=True)
+               out_bytes=du(out_dir),
+               bam2vcf_seconds=caller_timer.seconds,
+               alignment_seconds=(rec["seconds"] - caller_timer.seconds
+                                  if caller_timer.seconds is not None else None))
+    if n_variants is not None:
+        print(f"[{ts()}] vk denovo candidates: {n_variants:,}", flush=True)
+    if caller_timer.seconds is not None:
+        print(f"[{ts()}] vk denovo split: {caller_timer.seconds:.1f} s calling + "
+              f"{rec['alignment_seconds']:.1f} s bowtie2 alignment "
+              f"({100 * rec['alignment_seconds'] / rec['seconds']:.1f}% alignment)", flush=True)
     return variants_tsv, bam_dir, rec
 
 
@@ -486,6 +560,13 @@ def run_point(n_reads, args, source_reads):
     entry["varseek_total_seconds"] = sum(
         entry[s]["seconds"] for s in ("vk_denovo", "vk_ref", "vk_count")
     )
+    # The comparison figure: callers timed on a pre-built BAM never pay for alignment, and
+    # bowtie2 is ~98% of vk denovo, so charging varseek for it is not a like-for-like number.
+    if entry["vk_denovo"].get("bam2vcf_seconds") is not None:
+        entry["varseek_total_seconds_excl_alignment"] = (
+            entry["vk_denovo"]["bam2vcf_seconds"]
+            + entry["vk_ref"]["seconds"] + entry["vk_count"]["seconds"]
+        )
     entry["varseek_peak_rss_bytes"] = max(
         entry[s].get("peak_rss_bytes", 0) for s in ("vk_denovo", "vk_ref", "vk_count")
     )
@@ -624,16 +705,21 @@ def main():
 
     # ---- summary ----
     print(f"\n{'=' * 78}\nSummary ({args.out_json})\n{'=' * 78}")
-    hdr = f"{'reads':>10} {'denovo':>10} {'ref':>10} {'count':>10} {'total':>10}  {'peak RSS':>9}"
-    print(hdr)
+    print(f"{'reads':>10} {'denovo':>10} {'(bowtie2)':>10} {'ref':>10} {'count':>10} "
+          f"{'total':>10} {'no-align':>10}  {'peak RSS':>9}")
     for n_reads in read_counts:
         e = data["results"].get(str(n_reads))
         if not e or e.get("status") != "ok":
             print(f"{n_reads/1e6:9.0f}M {'-- ' + str(e.get('status') if e else 'not run'):>44}")
             continue
+        align = e["vk_denovo"].get("alignment_seconds")
+        excl = e.get("varseek_total_seconds_excl_alignment")
         print(f"{n_reads/1e6:9.0f}M "
-              f"{e['vk_denovo']['seconds']:9.1f}s {e['vk_ref']['seconds']:9.1f}s "
-              f"{e['vk_count']['seconds']:9.1f}s {e['varseek_total_seconds']:9.1f}s  "
+              f"{e['vk_denovo']['seconds']:9.1f}s "
+              f"{(f'{align:.1f}s' if align is not None else '-'):>10} "
+              f"{e['vk_ref']['seconds']:9.1f}s "
+              f"{e['vk_count']['seconds']:9.1f}s {e['varseek_total_seconds']:9.1f}s "
+              f"{(f'{excl:.1f}s' if excl is not None else '-'):>10}  "
               f"{gb(e.get('varseek_peak_rss_bytes', 0)):8.2f}G")
         for caller in ("haplotypecaller", "mutect2"):
             if e.get(caller, {}).get("seconds") is not None:
