@@ -19,6 +19,13 @@ import sys
 ROOT = "/home/jrich/Desktop/varseek-examples"
 os.chdir(ROOT)
 
+# Put this interpreter's own bin directory first on PATH. Both this script and vk count
+# (which shells out to `kb count` internally) resolve `kb` through PATH, so running from a
+# shell with a different conda environment active otherwise fails on the wrong -- or a
+# missing -- `kb`.
+_bindir = os.path.dirname(sys.executable)
+os.environ["PATH"] = _bindir + os.pathsep + os.environ.get("PATH", "")
+
 reference_dir = os.path.join("data", "reference")
 sequences = os.path.join(reference_dir, "ensembl_grch38_release114", "Homo_sapiens.GRCh38.dna.primary_assembly.fa")
 gtf = os.path.join(reference_dir, "ensembl_grch38_release114", "Homo_sapiens.GRCh38.114.gtf")
