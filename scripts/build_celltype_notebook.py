@@ -60,6 +60,11 @@ ___
 > `python scripts/celltype_pipeline.py {pbmc68k,gbm} {standard,denovo,ref,count}`.
 """)
 
+md(r"""
+> **Requires `varseek >= 0.2.0`.** Earlier releases use a different `vk denovo` API
+> (`fasta_ref` instead of `sequences`, no `reads_type` argument) and this notebook will not run on them.
+""")
+
 md("### Install varseek, and import all packages")
 
 code(r"""
@@ -668,31 +673,43 @@ heterozygous alleles entirely.
 """)
 
 code(r"""
-def chrom_of(ix):
-    return pd.Series(ix, index=ix).str.extract(r"^([^(:]+)")[0]
+import sys
+sys.path.insert(0, "scripts")
+import plot_gbm_figure as pgf
 
-allv = pd.read_csv(os.path.join(gbm.base, "vcrs_malignancy_enrichment.tsv"), sep="\t", index_col=0)
-bg = allv[allv["n_cells"] >= 25]
-tab = pd.DataFrame({"significant": chrom_of(sig_gbm.index).value_counts(),
-                    "background": chrom_of(bg.index).value_counts()}).fillna(0)
-tab["fold"] = (tab["significant"] / tab["significant"].sum()) / (tab["background"] / tab["background"].sum())
+# Fisher per chromosome, BH-corrected across all 23. Testing only chr7 and chr10 -- the two
+# you expect to move -- would be a post-hoc selection; correcting genome-wide is what
+# licenses the claim, and it finds deviations beyond the expected pair.
+chrom_stats, _ = pgf.chromosome_enrichment(gbm.base)
+chrom_stats[chrom_stats["sig"]].round(4)
+""")
 
-from scipy.stats import fisher_exact
-for c in ("7", "10"):
-    a = int(tab.loc[c, "significant"]); b = int(tab["significant"].sum() - a)
-    d = int(tab.loc[c, "background"]); e = int(tab["background"].sum() - d)
-    orr, p = fisher_exact([[a, b], [d, e]])
-    print(f"chr{c}: {a} of {int(tab['significant'].sum())} malignant-specific VCRSs, "
-          f"fold={tab.loc[c,'fold']:.2f}, OR={orr:.2f}, p={p:.2e}")
+code(r"""
+print("genes carrying the most malignant-specific variants:")
+print(pd.Series(sig_gbm.index, index=sig_gbm.index)
+      .str.extract(r"\(([^)]*)\)")[0].value_counts().head(12).to_string())
+""")
 
-print("\ngenes carrying the most malignant-specific variants:")
-print(pd.Series(sig_gbm.index, index=sig_gbm.index).str.extract(r"\(([^)]*)\)")[0].value_counts().head(12).to_string())
+md(r"""
+Both halves of that result in one figure:
+""")
+
+code(r"""
+# the inline backend displays the figure on its own; returning it too would render it twice
+fig, _ = pgf.make_figure(gbm.base)
 """)
 
 md(r"""
 `SEC61G`, `EGFR`, `PTN` and `LANCL2` are all chr7p11.2 neighbours — the **EGFR amplicon**,
 the single most characteristic focal amplification in glioblastoma. The variant data ranks it
 first without being told anything about copy number, EGFR, or glioma.
+
+Two chromosomes beyond the canonical pair also pass correction, and the figure labels them
+rather than cropping them out: **chr15** is depleted even more strongly than chr10
+(OR 0.18), and **chr19** is enriched (OR 1.52). chr19 is the most gene-dense chromosome, so
+its enrichment plausibly tracks gene density rather than copy number; chr15 has no such ready
+explanation. Neither is part of the IDH-wildtype signature, and reporting only chr7/chr10
+would misrepresent what the genome-wide test actually returns.
 
 ### The test that does *not* work, and why
 

@@ -77,7 +77,33 @@ DATASETS = {
         min_vaf=0.05,
         star_index=star_index_default,
     ),
+    # 10x 5' v2 single-nucleus tumors. R1 is 28 bp but the last two bases are ~94% T
+    # (poly-T/TSO, entropy 0.4 bits vs 2.0 for the UMI bases), so the UMI is 10 bp and the
+    # geometry is 10XV2 (16 bc + 10 umi), not 10XV3.
+    # A post-hoc rerun at min_vaf=0.15 / min_counts=8 (archived in vaf015_posthoc/) was
+    # tried to recover power and made it slightly worse: 461 testable variants versus 646.
+    # The limit is detection sparsity in single nuclei, not the allele-fraction floor.
+    "melanoma": dict(
+        base=os.path.join("data", "melanoma_10x"),
+        technology="10XV2", read_length=None, w=40, k=41,
+        denovo_stride=1, files_per_run=2,
+        min_counts_denovo=5, min_vaf=0.05, star_index=None,
+    ),
+    "kidney": dict(
+        base=os.path.join("data", "kidney_10x"),
+        technology="10XV2", read_length=None, w=40, k=41,
+        denovo_stride=1, files_per_run=2,
+        min_counts_denovo=5, min_vaf=0.05, star_index=None,
+    ),
 }
+
+
+def _detect_read_length(path):
+    """Length of the biological read, measured rather than assumed."""
+    import gzip
+    with gzip.open(path, "rt") as f:
+        f.readline()
+        return len(f.readline().strip())
 
 MIN_COUNTS_CLEAN = 1    # vk clean's per-cell-entry threshold; higher silently zeroes real calls
 MIN_MAPQ = MIN_BASEQ = 20
@@ -103,6 +129,21 @@ class Paths:
         self.vcrs_t2g = os.path.join(self.vk_ref_out_dir, "vcrs_t2g_denovo.txt")
         self.vk_count_out_dir = os.path.join(b, "vk_count_out")
         self.adata_vcrs = os.path.join(self.vk_count_out_dir, "adata_cleaned.h5ad")
+
+    def resolve(self):
+        """Fill in read length and the STAR index that matches it.
+
+        STAR bakes sjdbOverhang into the index and refuses to run on a mismatch, so the
+        index is named after the overhang it was built with and reused across datasets that
+        share a read length. vk denovo builds it when the directory is empty.
+        """
+        if self.read_length is None:
+            self.read_length = _detect_read_length(self.cdna()[0])
+        if self.star_index is None:
+            oh = self.read_length - 1
+            self.star_index = (star_index_default if oh == 90
+                               else os.path.join(reference_dir, f"star_index_sjdb{oh}"))
+        return self
 
     def runs(self):
         """FASTQ files grouped per sequencing run, in the order the technology expects."""
@@ -182,6 +223,8 @@ def run_count(p):
 
 if __name__ == "__main__":
     dataset, step = sys.argv[1], sys.argv[2]
-    paths = Paths(dataset)
+    paths = Paths(dataset).resolve()
+    print(f"[{dataset}] read_length={paths.read_length} star_index={paths.star_index} "
+          f"technology={paths.technology} runs={len(paths.runs())}")
     {"standard": run_standard, "denovo": run_denovo, "ref": run_ref, "count": run_count}[step](paths)
     print(f"{dataset} {step} DONE")
