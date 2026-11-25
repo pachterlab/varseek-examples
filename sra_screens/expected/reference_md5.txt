@@ -1,0 +1,3 @@
+bedf95705f3d35ce82d5f4b4b3ec52bb  vcrs.fa
+315a66f558917abdc345e314f514439a  vcrs_t2g_cosmic.txt
+a0ab439407173c510a420a723bc4d3b6  vcrs_index_cosmic.idx

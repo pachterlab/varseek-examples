@@ -1,0 +1,2 @@
+31ac243f2103c6f944ae3f5720f240b2  CancerMutationCensus_AllData_v101_GRCh37.tsv
+963a6b778843c4fd9e2c522ee0c0db79  CancerMutationCensus_AllData_v101_GRCh37_seq_id_variant_GRCh38.tsv

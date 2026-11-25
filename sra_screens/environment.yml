@@ -1,0 +1,19 @@
+# Environment used for the original screens (Linux x86_64). varseek itself from
+# https://github.com/pachterlab/varseek at commit 3535641 (the screens use only `vk count`, which is
+# unchanged since that commit; later commits add the MCP server and documentation).
+name: varseek_sra_screens
+channels: [conda-forge, bioconda]
+dependencies:
+  - python=3.10
+  - sra-tools=3.2.1          # prefetch / fasterq-dump (original: sratoolkit 3.2.1 binary)
+  - pip
+  - pip:
+      - kb_python==0.30.2    # bundles kallisto 0.52.0 and bustools 0.45.1
+      - pandas==1.5.3
+      - numpy==1.26.4
+      - pyarrow==25.0.0
+      - scipy==1.15.3
+      - statsmodels==0.14.6
+      - anndata==0.11.4
+      - gdown                # lung metadata from Google Drive
+      - "git+https://github.com/pachterlab/varseek.git@3535641977009364e2c173764637bc4cb3652016"
